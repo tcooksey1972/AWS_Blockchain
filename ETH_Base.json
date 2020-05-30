@@ -1,0 +1,822 @@
+{
+    "Description": "Template used to create the base network infrastructure for the Ethereum nodes",
+    "Outputs": {
+        "ALBSecurityGroup": {
+            "Description": "Security group for ETH ALB",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-AlbSecurityGroup"
+                }
+            },
+            "Value": {
+                "Ref": "EthAlbSecurityGroup"
+            }
+        },
+        "EC2InstanceProfile": {
+            "Description": "Instance profile for ETH EC2",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-Ec2InstanceProfile"
+                }
+            },
+            "Value": {
+                "Fn::GetAtt": [
+                    "EthIamInstanceProfile",
+                    "Arn"
+                ]
+            }
+        },
+        "EC2SecurityGroup": {
+            "Description": "Security group for ETH EC2",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-Ec2SecurityGroup"
+                }
+            },
+            "Value": {
+                "Ref": "EthEc2SecurityGroup"
+            }
+        },
+        "ECSALBRole": {
+            "Description": "ALB Role for ETH Service",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-EcsAlbRole"
+                }
+            },
+            "Value": {
+                "Fn::GetAtt": [
+                    "EthEcsAlbRole",
+                    "Arn"
+                ]
+            }
+        },
+        "StackName": {
+            "Value": {
+                "Fn::Sub": "${AWS::StackName}"
+            }
+        },
+        "SubnetAPrivateId": {
+            "Description": "SubnetId for the private subnet in AZ A",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-SubnetAPrivateID"
+                }
+            },
+            "Value": {
+                "Ref": "EthSubnetAPrivate"
+            }
+        },
+        "SubnetAPublicId": {
+            "Description": "SubnetId for the public subnet in AZ A",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-SubnetAPublicID"
+                }
+            },
+            "Value": {
+                "Ref": "EthSubnetAPublic"
+            }
+        },
+        "SubnetBPrivateId": {
+            "Description": "SubnetId for the private subnet in AZ B",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-SubnetBPrivateID"
+                }
+            },
+            "Value": {
+                "Ref": "EthSubnetBPrivate"
+            }
+        },
+        "SubnetBPublicId": {
+            "Description": "SubnetId for the public subnet in AZ B",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-SubnetBPublicID"
+                }
+            },
+            "Value": {
+                "Ref": "EthSubnetBPublic"
+            }
+        },
+        "VpcId": {
+            "Description": "VpcId for the newly created VPC",
+            "Export": {
+                "Name": {
+                    "Fn::Sub": "${AWS::StackName}-VPCID"
+                }
+            },
+            "Value": {
+                "Ref": "EthVpc"
+            }
+        }
+    },
+    "Parameters": {
+        "VpcCidr": {
+            "Description": "/16 Subnet to be used for this VPC (ex: 10.2)",
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "ALBInboundFromALB": {
+            "Properties": {
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "SourceSecurityGroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "ALBInboundFromEC2": {
+            "Properties": {
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "SourceSecurityGroupId": {
+                    "Ref": "EthEc2SecurityGroup"
+                },
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "ALBOutboundToALB": {
+            "Properties": {
+                "DestinationSecurityGroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupEgress"
+        },
+        "ALBOutboundToEC2": {
+            "Properties": {
+                "DestinationSecurityGroupId": {
+                    "Ref": "EthEc2SecurityGroup"
+                },
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupEgress"
+        },
+        "EC2InboundFromALB": {
+            "Properties": {
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthEc2SecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "SourceSecurityGroupId": {
+                    "Ref": "EthAlbSecurityGroup"
+                },
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "EC2InboundFromEC2": {
+            "Properties": {
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthEc2SecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "SourceSecurityGroupId": {
+                    "Ref": "EthEc2SecurityGroup"
+                },
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupIngress"
+        },
+        "EC2OutboundToInternet": {
+            "Properties": {
+                "CidrIp": "0.0.0.0/0",
+                "FromPort": -1,
+                "GroupId": {
+                    "Ref": "EthEc2SecurityGroup"
+                },
+                "IpProtocol": "-1",
+                "ToPort": -1
+            },
+            "Type": "AWS::EC2::SecurityGroupEgress"
+        },
+        "EthAclInPrivateAllowVpc": {
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "false",
+                "NetworkAclId": {
+                    "Ref": "EthPrivateAcl"
+                },
+                "Protocol": -1,
+                "RuleAction": "allow",
+                "RuleNumber": 99
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "EthAclInPublicAllowAll": {
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "false",
+                "NetworkAclId": {
+                    "Ref": "EthPublicAcl"
+                },
+                "Protocol": -1,
+                "RuleAction": "allow",
+                "RuleNumber": 99
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "EthAclOutPrivateAllowVpc": {
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "true",
+                "NetworkAclId": {
+                    "Ref": "EthPrivateAcl"
+                },
+                "Protocol": -1,
+                "RuleAction": "allow",
+                "RuleNumber": 99
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "EthAclOutPublicAllowAll": {
+            "Properties": {
+                "CidrBlock": "0.0.0.0/0",
+                "Egress": "true",
+                "NetworkAclId": {
+                    "Ref": "EthPublicAcl"
+                },
+                "Protocol": -1,
+                "RuleAction": "allow",
+                "RuleNumber": 99
+            },
+            "Type": "AWS::EC2::NetworkAclEntry"
+        },
+        "EthAlbSecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Security group to manage access to ETH ALB",
+                "GroupName": "EthAlbSecurityGroup",
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "EthEc2InstanceRole": {
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ec2.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "ecs:CreateCluster",
+                                        "ecs:DeregisterContainerInstance",
+                                        "ecs:DiscoverPollEndpoint",
+                                        "ecs:Poll",
+                                        "ecs:RegisterContainerInstance",
+                                        "ecs:StartTelemetrySession",
+                                        "ecs:Submit*",
+                                        "ecr:GetAuthorizationToken",
+                                        "ecr:BatchCheckLayerAvailability",
+                                        "ecr:GetDownloadUrlForLayer",
+                                        "ecr:BatchGetImage",
+                                        "logs:CreateLogStream",
+                                        "logs:PutLogEvents",
+                                        "dynamodb:BatchGetItem",
+                                        "dynamodb:BatchWriteItem",
+                                        "dynamodb:PutItem",
+                                        "dynamodb:DeleteItem",
+                                        "dynamodb:GetItem",
+                                        "dynamodb:Scan",
+                                        "dynamodb:Query",
+                                        "dynamodb:UpdateItem"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "*"
+                                    ]
+                                }
+                            ]
+                        },
+                        "PolicyName": "EthEc2InstanceRolePolicy"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "EthEc2SecurityGroup": {
+            "Properties": {
+                "GroupDescription": "Security group to manage access to ETH EC2",
+                "GroupName": "EthEc2SecurityGroup",
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::SecurityGroup"
+        },
+        "EthEcsAlbRole": {
+            "Properties": {
+                "AssumeRolePolicyDocument": {
+                    "Statement": [
+                        {
+                            "Action": [
+                                "sts:AssumeRole"
+                            ],
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ecs.amazonaws.com"
+                                ]
+                            }
+                        }
+                    ]
+                },
+                "Path": "/",
+                "Policies": [
+                    {
+                        "PolicyDocument": {
+                            "Statement": [
+                                {
+                                    "Action": [
+                                        "ecs:DescribeServices",
+                                        "ecs:UpdateService",
+                                        "cloudwatch:PutMetricAlarm",
+                                        "cloudwatch:DescribeAlarms",
+                                        "cloudwatch:DeleteAlarms",
+                                        "ec2:AuthorizeSecurityGroupIngress",
+                                        "ec2:Describe*",
+                                        "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                                        "elasticloadbalancing:DeregisterTargets",
+                                        "elasticloadbalancing:Describe*",
+                                        "elasticloadbalancing:RegisterInstancesWithLoadBalancer",
+                                        "elasticloadbalancing:RegisterTargets"
+                                    ],
+                                    "Effect": "Allow",
+                                    "Resource": [
+                                        "*"
+                                    ]
+                                }
+                            ]
+                        },
+                        "PolicyName": "EthEcsTaskExecutionRolePolicy"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::Role"
+        },
+        "EthIamInstanceProfile": {
+            "Properties": {
+                "Roles": [
+                    {
+                        "Ref": "EthEc2InstanceRole"
+                    }
+                ]
+            },
+            "Type": "AWS::IAM::InstanceProfile"
+        },
+        "EthInternetGateway": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthInternetGateway"
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::InternetGateway"
+        },
+        "EthPrivateAcl": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthPrivateAcl"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::NetworkAcl"
+        },
+        "EthPrivateRouteA": {
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NatGatewayA"
+                },
+                "RouteTableId": {
+                    "Ref": "EthRouteTableAPrivate"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "EthPrivateRouteB": {
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NatGatewayB"
+                },
+                "RouteTableId": {
+                    "Ref": "EthRouteTableBPrivate"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "EthPublicAcl": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthPublicAcl"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::NetworkAcl"
+        },
+        "EthPublicInternetRouteA": {
+            "DependsOn": "EthVpcGateway",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "EthInternetGateway"
+                },
+                "RouteTableId": {
+                    "Ref": "EthRouteTableAPublic"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "EthPublicInternetRouteB": {
+            "DependsOn": "EthVpcGateway",
+            "Properties": {
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "EthInternetGateway"
+                },
+                "RouteTableId": {
+                    "Ref": "EthRouteTableBPublic"
+                }
+            },
+            "Type": "AWS::EC2::Route"
+        },
+        "EthRouteTableAPrivate": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthRouteTableAPrivate"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "EthRouteTableAPrivateAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "EthRouteTableAPrivate"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetAPrivate"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "EthRouteTableAPublic": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthRouteTableAPublic"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "EthRouteTableAPublicAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "EthRouteTableAPublic"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetAPublic"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "EthRouteTableBPrivate": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthRouteTableBPrivate"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "EthRouteTableBPrivateAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "EthRouteTableBPrivate"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetBPrivate"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "EthRouteTableBPublic": {
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthRouteTableBPublic"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::RouteTable"
+        },
+        "EthRouteTableBPublicAssociation": {
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "EthRouteTableBPublic"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetBPublic"
+                }
+            },
+            "Type": "AWS::EC2::SubnetRouteTableAssociation"
+        },
+        "EthSubnetAPrivate": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "${VpcCidr}.16.0/20"
+                },
+                "MapPublicIpOnLaunch": "false",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthSubnetAPrivate"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "EthSubnetAPublic": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        0,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "${VpcCidr}.0.0/20"
+                },
+                "MapPublicIpOnLaunch": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthSubnetAPublic"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "EthSubnetAclAPrivate": {
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "EthPrivateAcl"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetAPrivate"
+                }
+            },
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation"
+        },
+        "EthSubnetAclAPublic": {
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "EthPublicAcl"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetAPublic"
+                }
+            },
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation"
+        },
+        "EthSubnetAclBPrivate": {
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "EthPrivateAcl"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetBPrivate"
+                }
+            },
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation"
+        },
+        "EthSubnetAclBPublic": {
+            "Properties": {
+                "NetworkAclId": {
+                    "Ref": "EthPublicAcl"
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetBPublic"
+                }
+            },
+            "Type": "AWS::EC2::SubnetNetworkAclAssociation"
+        },
+        "EthSubnetBPrivate": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "${VpcCidr}.48.0/20"
+                },
+                "MapPublicIpOnLaunch": "false",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": {
+                            "Fn::Sub": "EthSubnetBPrivate"
+                        }
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "EthSubnetBPublic": {
+            "Properties": {
+                "AvailabilityZone": {
+                    "Fn::Select": [
+                        1,
+                        {
+                            "Fn::GetAZs": ""
+                        }
+                    ]
+                },
+                "CidrBlock": {
+                    "Fn::Sub": "${VpcCidr}.32.0/20"
+                },
+                "MapPublicIpOnLaunch": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthSubnetBPublic"
+                    }
+                ],
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::Subnet"
+        },
+        "EthVpc": {
+            "Properties": {
+                "CidrBlock": {
+                    "Fn::Sub": "${VpcCidr}.0.0/16"
+                },
+                "EnableDnsHostnames": "true",
+                "EnableDnsSupport": "true",
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "EthVpc"
+                    }
+                ]
+            },
+            "Type": "AWS::EC2::VPC"
+        },
+        "EthVpcGateway": {
+            "Properties": {
+                "InternetGatewayId": {
+                    "Ref": "EthInternetGateway"
+                },
+                "VpcId": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::VPCGatewayAttachment"
+        },
+        "NatEIPA": {
+            "DependsOn": "EthVpcGateway",
+            "Properties": {
+                "Domain": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::EIP"
+        },
+        "NatEIPB": {
+            "DependsOn": "EthVpcGateway",
+            "Properties": {
+                "Domain": {
+                    "Ref": "EthVpc"
+                }
+            },
+            "Type": "AWS::EC2::EIP"
+        },
+        "NatGatewayA": {
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NatEIPA",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetAPublic"
+                }
+            },
+            "Type": "AWS::EC2::NatGateway"
+        },
+        "NatGatewayB": {
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NatEIPB",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "EthSubnetBPublic"
+                }
+            },
+            "Type": "AWS::EC2::NatGateway"
+        }
+    }
+}
